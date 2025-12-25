@@ -1,0 +1,122 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bell, X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { cn } from "@/lib/utils";
+
+export default function AlertNotifications({ alerts }) {
+    const [notifications, setNotifications] = useState([]);
+    const [dismissed, setDismissed] = useState([]);
+
+    useEffect(() => {
+        // Add new alerts as notifications
+        if (alerts && alerts.length > 0) {
+            const newAlerts = alerts.filter(alert => !dismissed.includes(alert.id));
+            setNotifications(newAlerts.slice(0, 3)); // Show max 3 at a time
+        }
+    }, [alerts, dismissed]);
+
+    const dismissNotification = (id) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        setDismissed(prev => [...prev, id]);
+    };
+
+    const getAlertIcon = (severity) => {
+        switch(severity?.toLowerCase()) {
+            case 'severe':
+            case 'extreme':
+                return AlertTriangle;
+            case 'moderate':
+                return Info;
+            default:
+                return Bell;
+        }
+    };
+
+    const getAlertColor = (severity) => {
+        switch(severity?.toLowerCase()) {
+            case 'severe':
+            case 'extreme':
+                return 'from-red-500 to-orange-600';
+            case 'moderate':
+                return 'from-orange-500 to-yellow-500';
+            default:
+                return 'from-blue-500 to-indigo-600';
+        }
+    };
+
+    return (
+        <div className="fixed top-20 right-4 z-50 space-y-3 max-w-md">
+            <AnimatePresence>
+                {notifications.map((notification, index) => {
+                    const Icon = getAlertIcon(notification.severity);
+                    const gradient = getAlertColor(notification.severity);
+
+                    return (
+                        <motion.div
+                            key={notification.id}
+                            initial={{ opacity: 0, x: 300, scale: 0.8 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 300, scale: 0.8 }}
+                            transition={{ type: 'spring', damping: 20 }}
+                            className={cn(
+                                "bg-white rounded-lg shadow-2xl border-l-4 overflow-hidden",
+                                notification.severity === 'severe' || notification.severity === 'extreme' 
+                                    ? 'border-red-500' 
+                                    : 'border-orange-500'
+                            )}
+                        >
+                            <div className={cn("h-1 bg-gradient-to-r", gradient)} />
+                            
+                            <div className="p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className={cn(
+                                        "p-2 rounded-lg bg-gradient-to-br",
+                                        gradient
+                                    )}>
+                                        <Icon className="w-5 h-5 text-white" />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded text-xs font-bold uppercase",
+                                                notification.severity === 'severe' || notification.severity === 'extreme'
+                                                    ? 'bg-red-100 text-red-700'
+                                                    : 'bg-orange-100 text-orange-700'
+                                            )}>
+                                                {notification.severity}
+                                            </span>
+                                            <span className="text-xs text-gray-500">{notification.time}</span>
+                                        </div>
+                                        <h4 className="font-bold text-gray-900 mb-1">{notification.title}</h4>
+                                        <p className="text-sm text-gray-600 line-clamp-2">{notification.description}</p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => dismissNotification(notification.id)}
+                                        className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                    >
+                                        <X className="w-4 h-4 text-gray-400" />
+                                    </button>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="flex gap-2 mt-3">
+                                    <button className="flex-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs font-medium text-gray-700 transition-colors">
+                                        View Details
+                                    </button>
+                                    <button 
+                                        onClick={() => dismissNotification(notification.id)}
+                                        className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </AnimatePresence>
+        </div>
+    );
+}
