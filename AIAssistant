@@ -1,0 +1,197 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Send, Loader2, Bot, Sparkles } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { base44 } from '@/api/base44Client';
+import ReactMarkdown from 'react-markdown';
+
+export default function AIAssistant({ isOpen, onClose, weatherData }) {
+    const [messages, setMessages] = useState([
+        {
+            role: 'assistant',
+            content: 'Hi! I\'m your weather assistant. Ask me anything about Seattle weather, forecasts, or weather patterns!'
+        }
+    ]);
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!input.trim() || loading) return;
+
+        const userMessage = input.trim();
+        setInput('');
+        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setLoading(true);
+
+        try {
+            const context = `
+Current Weather Data for Seattle:
+- Temperature: ${weatherData?.current?.tempF}°F (${weatherData?.current?.tempC}°C)
+- Condition: ${weatherData?.current?.description}
+- Humidity: ${weatherData?.current?.humidity}%
+- Wind: ${weatherData?.current?.windSpeed} mph
+- Pressure: ${weatherData?.current?.pressure} hPa
+- Visibility: ${weatherData?.current?.visibility} mi
+
+7-Day Forecast: ${JSON.stringify(weatherData?.dailyForecast)}
+
+Active Alerts: ${JSON.stringify(weatherData?.alerts)}
+
+User Question: ${userMessage}
+
+Please provide a helpful, conversational response about the weather. Be specific and reference the data provided.
+            `;
+
+            const response = await base44.integrations.Core.InvokeLLM({
+                prompt: context,
+                add_context_from_internet: false
+            });
+
+            setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+        } catch (error) {
+            setMessages(prev => [...prev, { 
+                role: 'assistant', 
+                content: 'Sorry, I encountered an error. Please try again.' 
+            }]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <>
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+                    />
+
+                    {/* Sidebar */}
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                        <Bot className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-white">Weather Assistant</h3>
+                                        <p className="text-xs text-white/80">Powered by AI</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={onClose}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-white hover:bg-white/20"
+                                >
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {messages.map((message, index) => (
+                                <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                                        message.role === 'user'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-900'
+                                    }`}>
+                                        {message.role === 'assistant' ? (
+                                            <ReactMarkdown
+                                                className="text-sm prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                                                components={{
+                                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                                    ul: ({ children }) => <ul className="ml-4 list-disc mb-2">{children}</ul>,
+                                                    ol: ({ children }) => <ol className="ml-4 list-decimal mb-2">{children}</ol>,
+                                                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                                                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                                }}
+                                            >
+                                                {message.content}
+                                            </ReactMarkdown>
+                                        ) : (
+                                            <p className="text-sm">{message.content}</p>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+
+                            {loading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                                        <span className="text-sm text-gray-600">Thinking...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <div className="p-4 border-t border-gray-200 bg-gray-50">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="Ask about the weather..."
+                                    className="flex-1"
+                                    disabled={loading}
+                                />
+                                <Button
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || loading}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <Send className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                Ask about forecasts, alerts, or weather patterns
+                            </p>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+    );
+}
