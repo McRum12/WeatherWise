@@ -1,0 +1,76 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Wind, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { cn } from "@/lib/utils";
+
+export default function AirQualityWidget() {
+    const aqi = 42; // Good
+    const pollutants = [
+        { name: 'PM2.5', value: 8, unit: 'µg/m³', status: 'good' },
+        { name: 'PM10', value: 15, unit: 'µg/m³', status: 'good' },
+        { name: 'O₃', value: 32, unit: 'ppb', status: 'good' },
+        { name: 'NO₂', value: 18, unit: 'ppb', status: 'good' },
+    ];
+
+    const getAQIStatus = (aqi) => {
+        if (aqi <= 50) return { label: 'Good', color: 'from-green-500 to-emerald-600', textColor: 'text-green-600', bg: 'bg-green-50' };
+        if (aqi <= 100) return { label: 'Moderate', color: 'from-yellow-500 to-orange-500', textColor: 'text-yellow-600', bg: 'bg-yellow-50' };
+        if (aqi <= 150) return { label: 'Unhealthy for Sensitive', color: 'from-orange-500 to-red-500', textColor: 'text-orange-600', bg: 'bg-orange-50' };
+        return { label: 'Unhealthy', color: 'from-red-500 to-purple-600', textColor: 'text-red-600', bg: 'bg-red-50' };
+    };
+
+    const status = getAQIStatus(aqi);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6"
+        >
+            <div className="flex items-center gap-2 mb-4">
+                <Wind className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Air Quality Index</h3>
+            </div>
+
+            {/* AQI Display */}
+            <div className={cn("rounded-xl p-6 mb-4", status.bg)}>
+                <div className="flex items-center justify-between mb-3">
+                    <div>
+                        <p className="text-sm text-gray-600 mb-1">Current AQI</p>
+                        <p className={cn("text-4xl font-bold", status.textColor)}>{aqi}</p>
+                    </div>
+                    <div className={cn("px-4 py-2 rounded-lg text-white font-semibold bg-gradient-to-r", status.color)}>
+                        {status.label}
+                    </div>
+                </div>
+                
+                <div className="flex items-start gap-2 text-sm text-gray-700">
+                    <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p>Air quality is satisfactory, and air pollution poses little or no risk.</p>
+                </div>
+            </div>
+
+            {/* Pollutants */}
+            <div className="space-y-3">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Key Pollutants</p>
+                {pollutants.map((pollutant) => (
+                    <div key={pollutant.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-16 text-sm font-medium text-gray-900">{pollutant.name}</div>
+                            <div className="flex-1 h-2 bg-gray-200 rounded-full w-32">
+                                <div 
+                                    className="h-full bg-green-500 rounded-full transition-all"
+                                    style={{ width: `${Math.min((pollutant.value / 50) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                            {pollutant.value} <span className="text-xs">{pollutant.unit}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </motion.div>
+    );
+}
